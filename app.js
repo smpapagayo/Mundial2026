@@ -116,8 +116,38 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     });
 
-    // Ordenar jugadores de mayor a menor puntuación actual
-    players.sort((a, b) => b.currentPoints - a.currentPoints);
+    // Ordenar jugadores:
+    // 1. Por puntuación total (currentPoints) descendente.
+    // 2. Desempate: por cantidad de aciertos exactos (5 puntos) descendente.
+    // 3. Desempate: por cantidad de diferencia de goles/empate (3 puntos) descendente.
+    // 4. Desempate: por cantidad de ganador acertado (2 puntos) descendente.
+    // 5. Desempate: alfabético por nombre.
+    players.sort((a, b) => {
+      if (b.currentPoints !== a.currentPoints) {
+        return b.currentPoints - a.currentPoints;
+      }
+      
+      // Contar cantidad de aciertos de 5, 3 y 2 puntos
+      const countExactA = a.single.filter(pts => pts === 5).length;
+      const countExactB = b.single.filter(pts => pts === 5).length;
+      if (countExactB !== countExactA) {
+        return countExactB - countExactA;
+      }
+      
+      const countDiffA = a.single.filter(pts => pts === 3).length;
+      const countDiffB = b.single.filter(pts => pts === 3).length;
+      if (countDiffB !== countDiffA) {
+        return countDiffB - countDiffA;
+      }
+      
+      const countWinA = a.single.filter(pts => pts === 2).length;
+      const countWinB = b.single.filter(pts => pts === 2).length;
+      if (countWinB !== countWinA) {
+        return countWinB - countWinA;
+      }
+      
+      return a.name.localeCompare(b.name);
+    });
 
     // Asignar colores de acuerdo al ranking actual (para destacar líder, segundo, tercero)
     players.forEach((p, idx) => {
