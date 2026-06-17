@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evolución de la Penka Mundial 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <!-- Cabecera Principal -->
+  <header>
+    <h1>Evolución de la Penka Mundial 2026</h1>
+    <div id="header-prizes" class="header-prizes">
+      <!-- Cargado por JS -->
+    </div>
+  </header>
+
+  <!-- Contenedor del Dashboard -->
+  <main class="dashboard-grid">
+
+    <!-- PANEL CENTRAL: Gráfico y Leyenda -->
+    <section class="glass-card main-chart-card" id="chart-card">
+      <div class="chart-header">
+        <h2>Carrera por el Liderato (Puntos Acumulados)</h2>
+      </div>
+
+      <!-- Contenedor del Gráfico SVG -->
+      <div id="chart-container" class="chart-container">
+        <!-- SVG se genera dinámicamente aquí -->
+      </div>
+
+      <!-- Tooltip Flotante -->
+      <div id="chart-tooltip" class="chart-tooltip"></div>
+
+      <!-- Tabla Leyenda de Participantes -->
+      <h3
+        style="font-size: 0.95rem; margin-top: 24px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px;">
+        Posiciones y Participantes</h3>
+      <div id="legend-container" class="players-legend">
+        <!-- Cargado por JS -->
+      </div>
+    </section>
+
+    <!-- PANEL DERECHO: Tendencias y Análisis -->
+    <section class="glass-card trends-container" id="trends-card">
+      <h2>📊 Análisis y Métricas</h2>
+
+      <!-- Eficiencia Líder -->
+      <div class="metric-card">
+        <div class="metric-icon">📈</div>
+        <div class="metric-info">
+          <div class="metric-label">Eficiencia del Líder</div>
+          <div id="leader-efficiency-val" class="metric-val">0.0%</div>
+          <div id="leader-efficiency-sub" class="metric-desc">(0/0 pts)</div>
+
+          <!-- Barra de Progreso Visual -->
+          <div
+            style="background: rgba(255,255,255,0.05); height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden; position: relative;">
+            <div id="leader-progress-bar"
+              style="background: var(--accent-gold); height: 100%; width: 40%; transition: width 0.5s ease;"></div>
+          </div>
+          <div
+            style="display: flex; justify-content: space-between; font-size: 8px; color: var(--text-muted); margin-top: 4px;">
+            <span>0 pts</span>
+            <span id="leader-progress-max">80 pts max</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tendencias -->
+      <div class="rule-group">
+        <h3 style="margin-bottom: 12px;">Tendencias de la Fecha</h3>
+        <div id="trends-text-container" class="trend-analysis-text">
+          <!-- Cargado por JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+
+  <!-- Carga de Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
