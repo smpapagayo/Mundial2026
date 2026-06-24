@@ -44,38 +44,15 @@
       </div>
     </section>
 
-    <!-- PANEL DERECHO: Tendencias y Análisis -->
+    <!-- PANEL DERECHO: Tendencias -->
     <section class="glass-card trends-container" id="trends-card">
-      <h2>📊 Análisis y Métricas</h2>
-
-      <!-- Eficiencia Líder -->
-      <div class="metric-card">
-        <div class="metric-icon">📈</div>
-        <div class="metric-info">
-          <div class="metric-label">Eficiencia del Líder</div>
-          <div id="leader-efficiency-val" class="metric-val">0.0%</div>
-          <div id="leader-efficiency-sub" class="metric-desc">(0/0 pts)</div>
-
-          <!-- Barra de Progreso Visual -->
-          <div
-            style="background: rgba(255,255,255,0.05); height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden; position: relative;">
-            <div id="leader-progress-bar"
-              style="background: var(--accent-gold); height: 100%; width: 40%; transition: width 0.5s ease;"></div>
-          </div>
-          <div
-            style="display: flex; justify-content: space-between; font-size: 8px; color: var(--text-muted); margin-top: 4px;">
-            <span>0 pts</span>
-            <span id="leader-progress-max">80 pts max</span>
-          </div>
-        </div>
+      <h2>📊 Tendencias</h2>
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: -12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+        Últimos 10 partidos
       </div>
 
-      <!-- Tendencias -->
-      <div class="rule-group">
-        <h3 style="margin-bottom: 12px;">Tendencias de la Fecha</h3>
-        <div id="trends-text-container" class="trend-analysis-text">
-          <!-- Cargado por JS -->
-        </div>
+      <div id="trends-cards-container" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Cargado dinámicamente por JS -->
       </div>
     </section>
 

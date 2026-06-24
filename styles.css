@@ -347,7 +347,7 @@ header h1 {
   position: relative;
   width: 100%;
   flex-grow: 1;
-  min-height: 480px;
+  min-height: 650px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: var(--radius-md);
   padding: 12px;

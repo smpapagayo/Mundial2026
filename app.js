@@ -13,11 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const headerPrizes = document.getElementById("header-prizes");
   
   // Métricas
-  const leaderEfficiencyVal = document.getElementById("leader-efficiency-val");
-  const leaderEfficiencySub = document.getElementById("leader-efficiency-sub");
-  const leaderProgressMax = document.getElementById("leader-progress-max");
-  const leaderProgressBar = document.getElementById("leader-progress-bar");
-  const trendsTextContainer = document.getElementById("trends-text-container");
+  const trendsCardsContainer = document.getElementById("trends-cards-container");
 
   // --- Estado de la Aplicación ---
   let state = {
@@ -174,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Viewport SVG base
     const svgWidth = 800;
-    const svgHeight = 480;
+    const svgHeight = 650;
     
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
@@ -198,25 +194,41 @@ document.addEventListener("DOMContentLoaded", () => {
     const chartW = svgWidth - margin.left - margin.right;
     const chartH = svgHeight - margin.top - margin.bottom;
 
-    const numMatches = state.data.headers.length;
+    const totalMatches = state.data.headers.length;
+    const isMobile = window.innerWidth <= 600;
+    const visibleMatchesCount = isMobile ? Math.min(5, totalMatches) : Math.min(10, totalMatches);
+    const startIndex = totalMatches - visibleMatchesCount;
     
-    // Calcular puntaje máximo para el eje Y
-    let maxVal = 10;
+    // Calcular puntaje mínimo y máximo en el rango visible para el eje Y
+    let minVal = Infinity;
+    let maxVal = -Infinity;
     players.forEach(p => {
-      const localMax = Math.max(...p.activePoints);
-      if (localMax > maxVal) maxVal = localMax;
+      const visiblePoints = p.activePoints.slice(startIndex);
+      visiblePoints.forEach(val => {
+        if (val < minVal) minVal = val;
+        if (val > maxVal) maxVal = val;
+      });
     });
-    // Redondear al siguiente múltiplo de 5
-    const yMaxLimit = Math.ceil(maxVal / 5) * 5;
+
+    // Redondear a múltiplos de 5 para mantener cuadrícula limpia y legible
+    let yMinLimit = Math.floor(minVal / 5) * 5;
+    let yMaxLimit = Math.ceil(maxVal / 5) * 5;
+    
+    // Si todos los valores son iguales, dar un rango por defecto
+    if (yMaxLimit === yMinLimit) {
+      yMaxLimit += 5;
+      yMinLimit = Math.max(0, yMinLimit - 5);
+    }
 
     // Funciones de mapeo de coordenadas
-    const getX = (matchIdx) => margin.left + (matchIdx * (chartW / (numMatches - 1)));
-    const getY = (val) => margin.top + chartH - (val * (chartH / yMaxLimit));
+    const getX = (matchIdx) => margin.left + (matchIdx * (chartW / (visibleMatchesCount - 1 || 1)));
+    const getY = (val) => {
+      const range = yMaxLimit - yMinLimit || 1;
+      return margin.top + chartH - ((val - yMinLimit) * (chartH / range));
+    };
 
     // 1. Dibujar líneas de cuadrícula Y (y etiquetas)
-    const gridCount = yMaxLimit / 5;
-    for (let i = 0; i <= gridCount; i++) {
-      const val = i * 5;
+    for (let val = yMinLimit; val <= yMaxLimit; val += 5) {
       const y = getY(val);
       
       // Línea de la cuadrícula
@@ -225,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
       gridLine.setAttribute("y1", y);
       gridLine.setAttribute("x2", margin.left + chartW);
       gridLine.setAttribute("y2", y);
-      gridLine.setAttribute("class", "chart-grid-line " + (val === 0 ? "" : "dash"));
+      gridLine.setAttribute("class", "chart-grid-line " + (val === yMinLimit ? "" : "dash"));
       svg.appendChild(gridLine);
       
       // Etiqueta Y
@@ -239,7 +251,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Eje X: Etiquetas (P1, P2...)
-    state.data.headers.forEach((h, idx) => {
+    const activeHeaders = state.data.headers.slice(startIndex);
+    activeHeaders.forEach((h, idx) => {
       const x = getX(idx);
       
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -278,13 +291,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Dibujar "Zona del Asado"
     // Solo aplica para la vista acumulativa
     if (state.chartType === "cumulative" && players.length >= 5) {
-      // Filtrar los que participan en el asado
-      const asadoPlayers = players.filter(p => p.participatesInAsado !== false);
+      // Todos los jugadores participan en el asado
+      const asadoPlayers = players;
       // Para cada partido j, encontramos el umbral que define a los 5 últimos jugadores
       const asadoPointsPath = [];
-      for (let j = 0; j < numMatches; j++) {
+      for (let j = 0; j < visibleMatchesCount; j++) {
+        const actualMatchIdx = startIndex + j;
         // Obtener puntuaciones de los participantes activos del asado
-        const roundScores = asadoPlayers.map(p => p.activePoints[j] || 0);
+        const roundScores = asadoPlayers.map(p => p.activePoints[actualMatchIdx] || 0);
         roundScores.sort((a, b) => a - b); // De menor a mayor
         // El umbral es el valor del 5º jugador desde abajo
         const threshold = roundScores[Math.min(4, roundScores.length - 1)] || 0;
@@ -296,20 +310,19 @@ document.addEventListener("DOMContentLoaded", () => {
       asadoPointsPath.forEach(pt => {
         polygonD += `L ${pt.x} ${pt.y} `;
       });
-      polygonD += `L ${getX(numMatches - 1)} ${margin.top + chartH} Z`;
+      polygonD += `L ${getX(visibleMatchesCount - 1)} ${margin.top + chartH} Z`;
 
       const asadoZone = document.createElementNS("http://www.w3.org/2000/svg", "path");
       asadoZone.setAttribute("d", polygonD);
       asadoZone.setAttribute("class", "asado-zone-svg");
       svg.appendChild(asadoZone);
-
-
     }
 
     // 3. Dibujar las líneas de los jugadores
     players.forEach((player) => {
       let d = "";
-      player.activePoints.forEach((val, idx) => {
+      const visiblePoints = player.activePoints.slice(startIndex);
+      visiblePoints.forEach((val, idx) => {
         const x = getX(idx);
         const y = getY(val);
         d += (idx === 0 ? "M" : "L") + ` ${x} ${y}`;
@@ -340,7 +353,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. Dibujar círculos invisibles de interacción (para tooltips precisos)
     players.forEach((player) => {
-      player.activePoints.forEach((val, idx) => {
+      const visiblePoints = player.activePoints.slice(startIndex);
+      visiblePoints.forEach((val, idx) => {
         const x = getX(idx);
         const y = getY(val);
 
@@ -359,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
           highlightPlayer(player.name);
           circle.setAttribute("opacity", "1");
           circle.setAttribute("r", 6);
-          showTooltip(e, player, idx, val);
+          showTooltip(e, player, startIndex + idx, val);
         });
 
         circle.addEventListener("mouseleave", () => {
@@ -375,11 +389,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 5. Dibujar etiquetas de nombres de jugadores al final de sus líneas
     // Para evitar superposiciones, podemos ordenar los nombres y sus posiciones de manera limpia.
-    const lastX = getX(numMatches - 1);
+    const lastX = getX(visibleMatchesCount - 1);
     
     // Creamos objetos para posicionar
     const labelPositions = players.map(p => {
-      const lastVal = p.activePoints[p.activePoints.length - 1] || 0;
+      const visiblePoints = p.activePoints.slice(startIndex);
+      const lastVal = visiblePoints[visiblePoints.length - 1] || 0;
       return {
         name: p.name,
         color: p.color,
@@ -392,7 +407,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Resolver colisiones básico (barrido vertical de abajo a arriba)
     labelPositions.sort((a, b) => a.targetY - b.targetY); // De arriba a abajo en SVG (0 es arriba)
-    const minSpacing = 13; // Espacio mínimo entre textos en px
+    const minSpacing = 14; // Espacio mínimo entre textos en px
     for (let i = 1; i < labelPositions.length; i++) {
       if (labelPositions[i].targetY - labelPositions[i - 1].targetY < minSpacing) {
         labelPositions[i].targetY = labelPositions[i - 1].targetY + minSpacing;
@@ -481,93 +496,182 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Calcular y Renderizar Tendencias ---
-  function renderTrends(players) {
-    if (players.length === 0) return;
+  // Helper to get historical rankings at index `j`
+  function getRankedPlayersAt(players, j) {
+    if (j < 0) {
+      // If before first match, order alphabetically
+      return [...players].sort((a, b) => a.name.localeCompare(b.name)).map((p, idx) => ({
+        name: p.name,
+        rank: idx + 1,
+        points: 0
+      }));
+    }
+    const playersCopy = players.map(p => {
+      const pointsUpToJ = p.single.slice(0, j + 1);
+      const cumulativePoints = p.cumulative[j] || 0;
+      return {
+        name: p.name,
+        currentPoints: cumulativePoints,
+        single: pointsUpToJ
+      };
+    });
+    
+    playersCopy.sort((a, b) => {
+      if (b.currentPoints !== a.currentPoints) {
+        return b.currentPoints - a.currentPoints;
+      }
+      
+      const countExactA = a.single.filter(pts => pts === 5).length;
+      const countExactB = b.single.filter(pts => pts === 5).length;
+      if (countExactB !== countExactA) {
+        return countExactB - countExactA;
+      }
+      
+      const countDiffA = a.single.filter(pts => pts === 3).length;
+      const countDiffB = b.single.filter(pts => pts === 3).length;
+      if (countDiffB !== countDiffA) {
+        return countDiffB - countDiffA;
+      }
+      
+      const countWinA = a.single.filter(pts => pts === 2).length;
+      const countWinB = b.single.filter(pts => pts === 2).length;
+      if (countWinB !== countWinA) {
+        return countWinB - countWinA;
+      }
+      
+      return a.name.localeCompare(b.name);
+    });
+    
+    return playersCopy.map((p, idx) => ({
+      name: p.name,
+      rank: idx + 1,
+      points: p.currentPoints
+    }));
+  }
 
-    const leader = players[0];
-    const second = players[1] || leader;
-    const worst = players[players.length - 1];
+  // --- Calcular y Renderizar Tendencias (Últimos 10 partidos) ---
+  function renderTrends() {
+    const players = state.data.players;
+    if (!players || players.length === 0) return;
 
     const totalMatches = state.data.headers.length;
-    // Puntos máximos posibles acumulados (16 partidos * 5 puntos)
-    const maxPossiblePoints = totalMatches * 5; 
-    const leaderEff = ((leader.currentPoints / maxPossiblePoints) * 100).toFixed(1);
+    const windowSize = 10;
+    const startIdx = Math.max(0, totalMatches - windowSize);
+    const endIdx = totalMatches - 1;
+    const prevIdx = Math.max(0, totalMatches - 11);
 
-    // 1. Mostrar Eficiencia del Líder en la tarjeta métrica
-    leaderEfficiencyVal.textContent = `${leaderEff}%`;
-    leaderEfficiencySub.textContent = `(${leader.currentPoints}/${maxPossiblePoints} pts)`;
+    // Ranks at the start and end of the window
+    const startRankings = getRankedPlayersAt(players, prevIdx);
+    const endRankings = getRankedPlayersAt(players, endIdx);
+
+    // Calculate diffs for each player
+    const playersDiffs = players.map(p => {
+      const startRank = startRankings.find(r => r.name === p.name).rank;
+      const endRank = endRankings.find(r => r.name === p.name).rank;
+      const rankChange = startRank - endRank; // positive = climbed, negative = descended
+
+      const startPoints = prevIdx >= 0 ? p.cumulative[prevIdx] : 0;
+      const endPoints = p.cumulative[endIdx] || 0;
+      const pointsAdded = endPoints - startPoints;
+
+      return {
+        name: p.name,
+        rankChange,
+        pointsAdded,
+        startRank,
+        endRank,
+        startPoints,
+        endPoints
+      };
+    });
+
+    // 1. Player who climbed the most positions
+    const maxClimb = Math.max(...playersDiffs.map(p => p.rankChange));
+    const climbers = playersDiffs.filter(p => p.rankChange === maxClimb && p.rankChange > 0);
     
-    // Barra de progreso de la métrica
-    leaderProgressMax.textContent = `${maxPossiblePoints} pts`;
-    if (leaderProgressBar) {
-      leaderProgressBar.style.width = `${leaderEff}%`;
-    }
-
-    // 2. Generar el Texto de Análisis de Tendencias
-    let htmlText = "";
+    // 2. Player who descended the most positions
+    const minClimb = Math.min(...playersDiffs.map(p => p.rankChange));
+    const descenders = playersDiffs.filter(p => p.rankChange === minClimb && p.rankChange < 0);
     
-    if (state.chartType === "cumulative") {
-      const diff = leader.currentPoints - second.currentPoints;
-      // Filtrar los que participan en el asado
-      const asadoPlayers = players.filter(p => p.participatesInAsado !== false);
-      const warningLimit = Math.max(0, asadoPlayers.length - 5);
-      const asadoCandidates = asadoPlayers.slice(warningLimit);
+    // 3. Player who scored the most points
+    const maxPoints = Math.max(...playersDiffs.map(p => p.pointsAdded));
+    const topScoreGainers = playersDiffs.filter(p => p.pointsAdded === maxPoints);
+    
+    // 4. Player who scored the least points
+    const minPoints = Math.min(...playersDiffs.map(p => p.pointsAdded));
+    const lowScoreGainers = playersDiffs.filter(p => p.pointsAdded === minPoints);
 
-      htmlText += `
-        <p>🥇 <strong>Consistencia Clave:</strong> La regularidad en aciertos de <strong>${leader.name}</strong> le permite mantenerse en la cima con una ventaja de <strong>+${diff} puntos</strong> sobre su perseguidor más cercano, ${second.name}.</p>
-      `;
+    const climberText = climbers.length > 0 
+      ? climbers.map(p => p.name).join("<br>")
+      : "Ninguno";
+    const climberVal = climbers.length > 0 
+      ? `+${climbers[0].rankChange} ${climbers[0].rankChange === 1 ? 'posición' : 'posiciones'}` 
+      : "-";
 
-      if (asadoCandidates.length > 0) {
-        const names = asadoCandidates.map(c => c.name).join(", ");
-        htmlText += `
-          <p>🔥 <strong>Zona de Peligro (Asado):</strong> Actualmente, los últimos participantes activos del castigo (<strong>${names}</strong>) están en la zona roja. Necesitan una excelente racha en los próximos encuentros para salvarse del gasto obligatorio.</p>
-        `;
-      }
+    const descenderText = descenders.length > 0 
+      ? descenders.map(p => p.name).join("<br>")
+      : "Ninguno";
+    const descenderVal = descenders.length > 0 
+      ? `${descenders[0].rankChange} ${descenders[0].rankChange === -1 ? 'posición' : 'posiciones'}` 
+      : "-";
 
-      // Buscar si hay algún jugador con buena racha
-      // Racha: últimos 4 partidos sumando buenos puntos
-      const streakPlayers = players.map(p => {
-        const last4 = p.activePoints.slice(-4);
-        let diffSum = 0;
-        if (last4.length >= 4) {
-          // Calculamos cuánto sumó en los últimos 4 partidos
-          const pStart = p.activePoints[p.activePoints.length - 5] || 0;
-          const pEnd = p.activePoints[p.activePoints.length - 1];
-          diffSum = pEnd - pStart;
-        }
-        return { name: p.name, streakPoints: diffSum };
-      }).sort((a, b) => b.streakPoints - a.streakPoints);
+    const topScorerText = topScoreGainers.length > 0 
+      ? topScoreGainers.map(p => p.name).join("<br>")
+      : "Ninguno";
+    const topScorerVal = topScoreGainers.length > 0 
+      ? `+${topScoreGainers[0].pointsAdded} pts` 
+      : "-";
 
-      if (streakPlayers[0] && streakPlayers[0].streakPoints > 5) {
-        htmlText += `
-          <p>📈 <strong>Racha Fuerte:</strong> <strong>${streakPlayers[0].name}</strong> ha estado encendido, acumulando <strong>+${streakPlayers[0].streakPoints} puntos</strong> en las últimas 4 jornadas y escalando en la tabla.</p>
-        `;
-      }
-    } else {
-      // Gráfico individual (Puntos por partido)
-      // Encontrar quién tuvo el partido con mayor puntaje individual
-      let bestMatchPoints = 0;
-      let bestMatchPlayer = "";
-      let bestMatchName = "";
+    const lowScorerText = lowScoreGainers.length > 0 
+      ? lowScoreGainers.map(p => p.name).join("<br>")
+      : "Ninguno";
+    const lowScorerVal = lowScoreGainers.length > 0 
+      ? `+${lowScoreGainers[0].pointsAdded} pts` 
+      : "-";
 
-      players.forEach(p => {
-        p.activePoints.forEach((pts, idx) => {
-          if (pts > bestMatchPoints) {
-            bestMatchPoints = pts;
-            bestMatchPlayer = p.name;
-            bestMatchName = state.data.headers[idx];
-          }
-        });
-      });
+    if (!trendsCardsContainer) return;
 
-      htmlText += `
-        <p>⚡ <strong>Récord de Jornada:</strong> El mayor puntaje obtenido en un solo partido fue de <strong>${bestMatchPoints} puntos</strong> por <strong>${bestMatchPlayer}</strong> durante la jornada <strong>${bestMatchName}</strong>.</p>
-        <p>📊 <strong>Distribución:</strong> Este gráfico muestra los aciertos exactos y aproximados fecha a fecha, permitiendo visualizar los picos de rendimiento e inconstancia de cada participante.</p>
-      `;
-    }
+    trendsCardsContainer.innerHTML = `
+      <!-- Card: Mayor Ascenso -->
+      <div class="metric-card">
+        <div class="metric-icon" style="background: rgba(0, 255, 127, 0.1); color: var(--accent-green);">🚀</div>
+        <div class="metric-info">
+          <div class="metric-label">Mayor Ascenso</div>
+          <div class="metric-val" style="font-size: 1.05rem; font-weight: 700; margin-top: 4px; line-height: 1.25;">${climberText}</div>
+          <div class="metric-desc" style="color: var(--accent-green); font-weight: 600; font-size: 0.8rem; margin-top: 4px;">${climberVal}</div>
+        </div>
+      </div>
 
-    trendsTextContainer.innerHTML = htmlText;
+      <!-- Card: Mayor Descenso -->
+      <div class="metric-card">
+        <div class="metric-icon" style="background: rgba(255, 87, 51, 0.1); color: var(--accent-danger);">📉</div>
+        <div class="metric-info">
+          <div class="metric-label">Mayor Descenso</div>
+          <div class="metric-val" style="font-size: 1.05rem; font-weight: 700; margin-top: 4px; line-height: 1.25;">${descenderText}</div>
+          <div class="metric-desc" style="color: var(--accent-danger); font-weight: 600; font-size: 0.8rem; margin-top: 4px;">${descenderVal}</div>
+        </div>
+      </div>
+
+      <!-- Card: Más Puntos Sumados -->
+      <div class="metric-card">
+        <div class="metric-icon" style="background: rgba(255, 199, 44, 0.1); color: var(--accent-gold);">⚡</div>
+        <div class="metric-info">
+          <div class="metric-label">Más Puntos Sumados</div>
+          <div class="metric-val" style="font-size: 1.05rem; font-weight: 700; margin-top: 4px; line-height: 1.25;">${topScorerText}</div>
+          <div class="metric-desc" style="color: var(--accent-gold); font-weight: 600; font-size: 0.8rem; margin-top: 4px;">${topScorerVal}</div>
+        </div>
+      </div>
+
+      <!-- Card: Menos Puntos Sumados -->
+      <div class="metric-card">
+        <div class="metric-icon" style="background: rgba(58, 134, 255, 0.1); color: var(--accent-blue);">🧊</div>
+        <div class="metric-info">
+          <div class="metric-label">Menos Puntos Sumados</div>
+          <div class="metric-val" style="font-size: 1.05rem; font-weight: 700; margin-top: 4px; line-height: 1.25;">${lowScorerText}</div>
+          <div class="metric-desc" style="color: var(--accent-blue); font-weight: 600; font-size: 0.8rem; margin-top: 4px;">${lowScorerVal}</div>
+        </div>
+      </div>
+    `;
   }
 
   // --- Funciones Auxiliares de Interacción ---
